@@ -37,6 +37,14 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             break;
 #endif
 
+        // case Mode::Number::EMGL:
+        //     ret = &mode_emgl;
+        //     break;
+
+        case Mode::Number::MYFIRST:
+            ret = &mode_myfirst;
+            break;
+
         case Mode::Number::STABILIZE:
             ret = &mode_stabilize;
             break;
