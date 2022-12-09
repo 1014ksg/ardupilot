@@ -145,17 +145,22 @@ void ModeRTL::climb_start()
     auto_yaw.set_mode(AutoYaw::Mode::HOLD);
 }
 
+double calc_dist()
+{
+    return 170;
+}
+
 // rtl_return_start - initialise return to home
 void ModeRTL::return_start()
 {
     double curr_lat = (double)copter.current_loc.lat/10000000;
     double curr_lng = (double)copter.current_loc.lng/10000000;
-
-    double target_lat = 35.8787624;
-    double target_lng = 140.3381646;
-
+    double target_lat = 35.8791254;//35.8786505, 35.8782484
+    double target_lng = 140.3397202;//140.3388673, 140.3382839
     gcs().send_text(MAV_SEVERITY_CRITICAL, "curr_lat: %f, curr_lng: %f", curr_lat, curr_lng);
     gcs().send_text(MAV_SEVERITY_CRITICAL, "target_lat: %f, target_lng: %f", target_lat, target_lng);
+    
+    [[maybe_unused]] double dist = calc_dist();
 
     double lat1 = radians(curr_lat);
     double lng1 = radians(curr_lng);
@@ -178,6 +183,14 @@ void ModeRTL::return_start()
         // failure must be caused by missing terrain data, restart RTL
         restart_without_terrain();
     }
+
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "return_target.lat %d", rtl_path.return_target.lat);
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "return_target.lng %d", rtl_path.return_target.lng);
+
+    rtl_path.return_target.lat = 358787624;
+    rtl_path.return_target.lng = 1403381646;
+
+    wp_nav->set_wp_destination_loc(rtl_path.return_target);
 
     // initialise yaw to point home (maybe)
     auto_yaw.set_mode_to_default(true);
