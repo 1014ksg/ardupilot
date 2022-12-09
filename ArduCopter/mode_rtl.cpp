@@ -1,4 +1,6 @@
 #include "Copter.h"
+#include <string>
+using namespace std;
 
 #if MODE_RTL_ENABLED == ENABLED
 
@@ -27,6 +29,8 @@ bool ModeRTL::init(bool ignore_checks)
 
     // this will be set true if prec land is later active
     copter.ap.prec_land_active = false;
+
+    printf("INTO RTL_mode");
 
 #if PRECISION_LANDING == ENABLED
     // initialise precland state machine
@@ -144,6 +148,29 @@ void ModeRTL::climb_start()
 // rtl_return_start - initialise return to home
 void ModeRTL::return_start()
 {
+    double curr_lat = (double)copter.current_loc.lat/10000000;
+    double curr_lng = (double)copter.current_loc.lng/10000000;
+
+    double target_lat = 35.8787624;
+    double target_lng = 140.3381646;
+
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "curr_lat: %f, curr_lng: %f", curr_lat, curr_lng);
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "target_lat: %f, target_lng: %f", target_lat, target_lng);
+
+    double lat1 = radians(curr_lat);
+    double lng1 = radians(curr_lng);
+    double lat2 = radians(target_lat);
+    double lng2 = radians(target_lng);
+
+    double dlng = lng2 - lng1;
+    double dlat = lat2 - lat1;
+
+    double a = sin(dlat / 2)*sin(dlat / 2) + cos(lat1) * cos(lat2) * sin(dlng / 2)*sin(dlng / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    double distance = 6373.0 * c * 1000;
+
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "distance %f", distance);
+
     _state = SubMode::RETURN_HOME;
     _state_complete = false;
 

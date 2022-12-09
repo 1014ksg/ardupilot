@@ -97,6 +97,7 @@ void Copter::handle_battery_failsafe(const char *type_str, const int8_t action)
 {
     AP::logger().Write_Error(LogErrorSubsystem::FAILSAFE_BATT, LogErrorCode::FAILSAFE_OCCURRED);
 
+    //以下の文でRTLにmodeが切り替わっている。このタイミングでRTLのホームを上書きしたい。
     FailsafeAction desired_action = (FailsafeAction)action;
 
     // Conditions to deviate from BATT_FS_XXX_ACT parameter setting
@@ -112,6 +113,7 @@ void Copter::handle_battery_failsafe(const char *type_str, const int8_t action)
         announce_failsafe("Battery", "Continuing Landing");
     } else {
         announce_failsafe("Battery");
+        printf("INTO last else in handle_battery_failsafe");
     }
 
     // Battery FS options already use the Failsafe_Options enum. So use them directly.
@@ -380,6 +382,7 @@ void Copter::set_mode_RTL_or_land_with_pause(ModeReason reason)
     } else {
         // alert pilot to mode change
         AP_Notify::events.failsafe_mode_change = 1;
+        printf("INTO AP_Notify");
     }
 }
 
@@ -458,6 +461,7 @@ void Copter::do_failsafe_action(FailsafeAction action, ModeReason reason){
             break;
         case FailsafeAction::RTL:
             set_mode_RTL_or_land_with_pause(reason);
+            printf("INTO set_mode_RTL_or_land_with_pause");
             break;
         case FailsafeAction::SMARTRTL:
             set_mode_SmartRTL_or_RTL(reason);
