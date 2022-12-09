@@ -145,23 +145,8 @@ void ModeRTL::climb_start()
     auto_yaw.set_mode(AutoYaw::Mode::HOLD);
 }
 
-double calc_dist()
+double calc_dist(double curr_lat, double curr_lng, double target_lat, double target_lng)
 {
-    return 170;
-}
-
-// rtl_return_start - initialise return to home
-void ModeRTL::return_start()
-{
-    double curr_lat = (double)copter.current_loc.lat/10000000;
-    double curr_lng = (double)copter.current_loc.lng/10000000;
-    double target_lat = 35.8791254;//35.8786505, 35.8782484
-    double target_lng = 140.3397202;//140.3388673, 140.3382839
-    gcs().send_text(MAV_SEVERITY_CRITICAL, "curr_lat: %f, curr_lng: %f", curr_lat, curr_lng);
-    gcs().send_text(MAV_SEVERITY_CRITICAL, "target_lat: %f, target_lng: %f", target_lat, target_lng);
-    
-    [[maybe_unused]] double dist = calc_dist();
-
     double lat1 = radians(curr_lat);
     double lng1 = radians(curr_lng);
     double lat2 = radians(target_lat);
@@ -174,7 +159,45 @@ void ModeRTL::return_start()
     double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     double distance = 6373.0 * c * 1000;
 
-    gcs().send_text(MAV_SEVERITY_CRITICAL, "distance %f", distance);
+    return distance;
+}
+
+// rtl_return_start - initialise return to home
+void ModeRTL::return_start()
+{
+    double curr_lat = (double)copter.current_loc.lat/10000000;
+    double curr_lng = (double)copter.current_loc.lng/10000000;
+
+    double target_lat_1 = 35.8791254;//35.8786505, 35.8782484
+    double target_lng_1 = 140.3397202;//140.3388673, 140.3382839
+    double dist_1 = calc_dist(curr_lat, curr_lng, target_lat_1, target_lng_1);
+
+    double target_lat_2 = 35.8786505;
+    double target_lng_2 = 140.3388673;
+    double dist_2 = calc_dist(curr_lat, curr_lng, target_lat_2, target_lng_2);
+
+    double target_lat_3 = 35.8782484;
+    double target_lng_3 = 140.3382839;
+    double dist_3 = calc_dist(curr_lat, curr_lng, target_lat_3, target_lng_3);
+
+    vector<vector<double>> location_all = {
+        {target_lat_1, target_lng_1, dist_1},
+        {target_lat_2, target_lng_2, dist_2},
+        {target_lat_3, target_lng_3, dist_3},
+        };
+
+    double min_loc[3] = {location_all[0][0], location_all[0][1], location_all[0][2]};
+    int i;
+    for (i=0;i<3;i++){
+        if (location_all[i][2] < min_loc[2]) {
+            min_loc[0] = location_all[i][0];
+            min_loc[1] = location_all[i][1];
+            min_loc[2] = location_all[i][2];
+        }
+    }
+
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "all_dist %f : %f  : %f", location_all[0][2], location_all[1][2], location_all[2][2]);
+    gcs().send_text(MAV_SEVERITY_CRITICAL, "new_target lat: %f, lon: %f, dist: %f", min_loc[0], min_loc[1], min_loc[2]);
 
     _state = SubMode::RETURN_HOME;
     _state_complete = false;
@@ -184,11 +207,8 @@ void ModeRTL::return_start()
         restart_without_terrain();
     }
 
-    gcs().send_text(MAV_SEVERITY_CRITICAL, "return_target.lat %d", rtl_path.return_target.lat);
-    gcs().send_text(MAV_SEVERITY_CRITICAL, "return_target.lng %d", rtl_path.return_target.lng);
-
-    rtl_path.return_target.lat = 358787624;
-    rtl_path.return_target.lng = 1403381646;
+    rtl_path.return_target.lat = min_loc[0]*10000000;
+    rtl_path.return_target.lng = min_loc[1]*10000000;
 
     wp_nav->set_wp_destination_loc(rtl_path.return_target);
 
