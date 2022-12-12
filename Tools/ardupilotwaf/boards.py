@@ -298,7 +298,7 @@ class Board:
 
             '-fdata-sections',
             '-ffunction-sections',
-            '-fno-exceptions',
+            '-fexceptions',
             '-fsigned-char',
 
             '-Wall',
@@ -407,7 +407,7 @@ class Board:
             ]
         else:
             env.LINKFLAGS += [
-                '-fno-exceptions',
+                '-fexceptions',
                 '-Wl,--gc-sections',
             ]
 
@@ -817,7 +817,7 @@ class esp32(Board):
                          '-g',
                          '-ffunction-sections',
                          '-fdata-sections',
-                         '-fno-exceptions',
+                         '-fexceptions',
                          '-fno-rtti',
                          '-nostdlib',
                          '-fstrict-volatile-bitfields',
@@ -881,7 +881,7 @@ class chibios(Board):
             '-Wframe-larger-than=1300',
             '-fsingle-precision-constant',
             '-Wno-attributes',
-            '-fno-exceptions',
+            '-fexceptions',
             '-Wall',
             '-Wextra',
             '-Wno-sign-compare',

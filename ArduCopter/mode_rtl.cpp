@@ -1,6 +1,15 @@
 #include "Copter.h"
+#include <vector>
 #include <string>
+#include <iostream>
+#include "rapidxml/rapidxml.hpp"
+#include "rapidxml/rapidxml_utils.hpp"
+
+#pragma GCC diagnostic ignored "-Wunused-variable"
+
 using namespace std;
+using namespace rapidxml;
+namespace rx = rapidxml;
 
 #if MODE_RTL_ENABLED == ENABLED
 
@@ -29,8 +38,6 @@ bool ModeRTL::init(bool ignore_checks)
 
     // this will be set true if prec land is later active
     copter.ap.prec_land_active = false;
-
-    printf("INTO RTL_mode");
 
 #if PRECISION_LANDING == ENABLED
     // initialise precland state machine
@@ -145,6 +152,7 @@ void ModeRTL::climb_start()
     auto_yaw.set_mode(AutoYaw::Mode::HOLD);
 }
 
+
 double calc_dist(double curr_lat, double curr_lng, double target_lat, double target_lng)
 {
     double lat1 = radians(curr_lat);
@@ -162,22 +170,88 @@ double calc_dist(double curr_lat, double curr_lng, double target_lat, double tar
     return distance;
 }
 
+//split strings method
+vector<string> split(string str, char del) {
+    int first = 0;
+    int last = str.find_first_of(del);
+
+    vector<string> result;
+
+    while (first < (int)str.size()) {
+        string subStr(str, first, last - first);
+
+        result.push_back(subStr);
+
+        first = last + 1;
+        last = str.find_first_of(del, first);
+
+        if (last == (int)string::npos) {
+            last = (int)str.size();
+        }
+    }
+
+    return result;
+}
+
 // rtl_return_start - initialise return to home
 void ModeRTL::return_start()
 {
+    char *pos[10];
+    int  lat[10],lng[10];
+    try{
+
+        rx::xml_document<> doc;
+        rx::file<> input("locate.xml");
+        doc.parse<0>(input.data());
+
+        rx::xml_node<>* node = doc.first_node("location");
+        int i = 0;int k = 0;int j = 0;
+        //i: each xml line counter
+        //k: k counter judge what lattitude is even or longitude is odd
+        //j: each lattitude,longitude couple's counter
+        for ( rx::xml_node<>* child = node->first_node(); 
+            child != nullptr; 
+            child = child->next_sibling() ) {
+                pos[i] = child->value();
+                //After every xml lines should divid by delimiter with '|'
+                 for(const auto substr : split(pos[i],'|') ){
+                     if( k%2 == 0 )
+                        lat[j] = stoi(substr);
+                     else{
+                        lng[j] = stoi(substr);
+                        j++;
+                     }
+                     //gcs().send_text(MAV_SEVERITY_CRITICAL,"SPILIT XML:%d",stoi(substr));
+                     k++;
+                 }
+                i++;
+        }
+    }catch(const std::exception& e){
+        gcs().send_text(MAV_SEVERITY_CRITICAL,"CAUSE RAPIDXML EMERGENCY");
+    }
+    //First Line XML lattitude & Longitude
+    gcs().send_text(MAV_SEVERITY_CRITICAL,"FIN lattitude:%d",lat[1]);
+    gcs().send_text(MAV_SEVERITY_CRITICAL,"FIN longitude:%d",lng[1]);
+
     double curr_lat = (double)copter.current_loc.lat/10000000;
     double curr_lng = (double)copter.current_loc.lng/10000000;
 
-    double target_lat_1 = 35.8791254;//35.8786505, 35.8782484
-    double target_lng_1 = 140.3397202;//140.3388673, 140.3382839
+    //double target_lat_1 = 35.8791254;//35.8786505, 35.8782484
+    double target_lat_1 = (double)lat[0]/10000000;
+    //double target_lng_1 = 140.3397202;//140.3388673, 140.3382839
+    double target_lng_1 = (double)lng[0]/10000000;
     double dist_1 = calc_dist(curr_lat, curr_lng, target_lat_1, target_lng_1);
 
-    double target_lat_2 = 35.8786505;
-    double target_lng_2 = 140.3388673;
+    //double target_lat_2 = 35.8786505;
+    double target_lat_2 = (double)lat[1]/10000000;
+    //double target_lng_2 = 140.3388673;
+    double target_lng_2 = (double)lng[1]/10000000;
     double dist_2 = calc_dist(curr_lat, curr_lng, target_lat_2, target_lng_2);
 
-    double target_lat_3 = 35.8782484;
-    double target_lng_3 = 140.3382839;
+    //double target_lat_3 = 35.8782484;
+    double target_lat_3 = (double)lat[2]/10000000;
+    //double target_lng_3 = 140.3382839;
+    double target_lng_3 = (double)lng[2]/10000000;
     double dist_3 = calc_dist(curr_lat, curr_lng, target_lat_3, target_lng_3);
 
     vector<vector<double>> location_all = {
@@ -215,12 +289,15 @@ void ModeRTL::return_start()
     // initialise yaw to point home (maybe)
     auto_yaw.set_mode_to_default(true);
 }
-
 // rtl_climb_return_run - implements the initial climb, return home and descent portions of RTL which all rely on the wp controller
 //      called by rtl_run at 100hz or more
+//戻っている間何度も呼び出される
 void ModeRTL::climb_return_run()
 {
+
+    //gcs().send_text(MAV_SEVERITY_CRITICAL,".......Warn CLIMB CLIMB .....\n");
     // if not armed set throttle to zero and exit immediately
+
     if (is_disarmed_or_landed()) {
         make_safe_ground_handling();
         return;
@@ -379,6 +456,10 @@ void ModeRTL::descent_run()
 // land_start - initialise controllers to loiter over home
 void ModeRTL::land_start()
 {
+    gcs().send_text(MAV_SEVERITY_CRITICAL,"Land Start........! ");
+    //print(copter.current_loc.lng);
+    //rtl_path.descent_target
+
     _state = SubMode::LAND;
     _state_complete = false;
 
@@ -417,8 +498,10 @@ bool ModeRTL::is_landing() const
 
 // land_run - run the landing controllers to put the aircraft on the ground
 // called by rtl_run at 100hz or more
+//最終着地点の緯度・経度まで移動してから設定高度から高度０地点まで何度も繰り返し呼び出し。
 void ModeRTL::land_run(bool disarm_on_land)
 {
+    //gcs().send_text(MAV_SEVERITY_CRITICAL,"Beggining to fly for Land point \n");
     // check if we've completed this stage of RTL
     _state_complete = copter.ap.land_complete;
 
